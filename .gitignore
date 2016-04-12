@@ -10,3 +10,24 @@
 
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
+
+.project
+.classpath
+.settings/
+.idea/
+engine/src/main/generated-parsers/
+*/.idea/
+*.iml
+*.ipr
+*.iws
+*.bin
+*/*.iml
+*/*.ipr
+*/*.iws
+target/
+out/
+.DS_Store
+*.sublime-*
+node_modules/
+*/node_modules/
+logs
