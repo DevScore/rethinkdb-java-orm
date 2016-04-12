@@ -1,15 +1,11 @@
-package com.devscore.rethinkdb;
+package com.rethinkdb.orm;
 
 import com.rethinkdb.RethinkDB;
-import com.rethinkdb.net.*;
+import com.rethinkdb.net.Connection;
+import com.rethinkdb.net.FixedConnectionPool;
 import org.junit.After;
-import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
-
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 
 public class EntityConverterTest {
 
@@ -27,6 +23,9 @@ public class EntityConverterTest {
 		RethinkDB.setGlobalConnectionPool(pool);
 
 		RethinkDB.r.db("test").tableCreate("pooltest").run();
+
+		// the gist of this project - registering new POJO converters
+		RethinkDB.registerPojoConverter(new EntityConverter());
 	}
 
 	@After
@@ -39,7 +38,5 @@ public class EntityConverterTest {
 	public void simpleConverterTest() {
 
 	}
-
-
 
 }

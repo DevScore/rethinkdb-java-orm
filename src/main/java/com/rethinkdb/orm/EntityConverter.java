@@ -1,4 +1,4 @@
-package com.devscore.rethinkdb;
+package com.rethinkdb.orm;
 
 import com.rethinkdb.net.PojoConverter;
 
