@@ -7,7 +7,10 @@ import java.util.*;
 public class EntityOne {
 
 	@Id
-	public Long userId;
+	public String userId;
+
+	@TableName
+	public String tableName;
 
 	@Indexed(name = "index_one") // type = IndexType.NUMERIC)
 	public int one;
@@ -34,7 +37,7 @@ public class EntityOne {
 	public Set twelve;
 	public byte[] thirteen;
 
-	public EntitySub sub;
+//	public EntitySub sub;
 
 	@AnyProperty
 	public final Map<String, Object> unmapped = new HashMap<>();
