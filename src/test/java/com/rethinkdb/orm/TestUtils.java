@@ -32,13 +32,12 @@ public class TestUtils {
 	}
 
 
-	public static Map<String, EntityOne> randomEntityOne(int number, String tableName) {
+	public static Map<String, EntityOne> randomEntityOne(int number) {
 
 		Map<String, EntityOne> res = new HashMap<>(number);
 		for (int i = 0; i < number; i++) {
 			EntityOne ent = new EntityOne();
 			ent.userId = String.valueOf(new Random().nextLong());
-			ent.tableName = tableName;
 			ent.one = random.nextInt();
 			ent.two = TestUtils.randomWord();
 			ent.three = random.nextDouble();
@@ -52,11 +51,10 @@ public class TestUtils {
 		return res;
 	}
 
-	public static EntityOne randomEntityOne(String tableName) {
+	public static EntityOne randomEntityOne() {
 
 		EntityOne ent = new EntityOne();
 		ent.userId = String.valueOf(new Random().nextLong());
-		ent.tableName = tableName;
 		ent.one = random.nextInt();
 		ent.two = TestUtils.randomWord();
 		ent.three = random.nextDouble();

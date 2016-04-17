@@ -61,7 +61,11 @@ public class ClassMapper<TYPE> {
 	public void map(TYPE object,
 	                String dbName,
 	                String tableName,
+	                Object id,
 	                Map<String, Object> properties) {
+
+		this.setId(object, id);
+
 		// set meta-fields on the entity: @Namespace, @SetName, @Expiration..
 		this.setMetaFieldValues(object, dbName, tableName);
 
@@ -73,7 +77,7 @@ public class ClassMapper<TYPE> {
 		return type;
 	}
 
-	public ObjectMetadata getRequiredMetadata(Object target, String defaultNamespace) {
+	public ObjectMetadata getRequiredMetadata(Object target, String defaultDbName) {
 		Class type = target.getClass();
 		ObjectMetadata metadata = new ObjectMetadata();
 
@@ -81,31 +85,15 @@ public class ClassMapper<TYPE> {
 		if (idFieldMapper == null) {
 			throw new RuntimeException("Class " + type.getName() + " is missing a field with @UserKey annotation.");
 		}
-		Object userKeyObj = idFieldMapper.getPropertyValue(target);
-		if (userKeyObj == null) {
-			throw new RuntimeException("Field with @Id annotation cannot be null" +
-					" Field " + type.getName() + "$" + idFieldMapper.field.getName() + " type is " + idFieldMapper.field.getType().getName() + ", value: null");
-		} else if (userKeyObj instanceof String) {
-			metadata.idString = (String) userKeyObj;
-			if (metadata.idString.isEmpty()) {
-				throw new RuntimeException("Field with @Id annotation and with type of String cannot be empty" +
-						" Field " + type.getName() + "$" + idFieldMapper.field.getName() + " type is " + idFieldMapper.field.getType().getName() + ", value: ''");
+		metadata.id = idFieldMapper.getPropertyValue(target);
 
-			}
-		} else if (userKeyObj instanceof Long) {
-			metadata.idLong = (Long) userKeyObj;
-		} else {
-			throw new RuntimeException("@UserKey annotation can only be used on fields of type: String, Long or long." +
-					" Field " + type.getName() + "$" + idFieldMapper.field.getName() + " type is " + idFieldMapper.field.getType().getName());
-		}
-
-		// acquire Namespace in the following order
-		// 1. use @Namespace on a field or
-		// 2. use @Namespace on class or
+		// acquire dbName in the following order
+		// 1. use @DbName on a field or
+		// 2. use @DbName on class or
 		// 3. use default dbName
 		String fieldNamespace = dbNameFieldMapper != null ? dbNameFieldMapper.getPropertyValue(target) : null;
 		metadata.dbName = fieldNamespace != null ? fieldNamespace :
-				(classDbName != null ? classDbName : defaultNamespace);
+				(classDbName != null ? classDbName : defaultDbName);
 		// dbName still not available
 		if (metadata.dbName == null) {
 			throw new RuntimeException("Error: dbName could not be inferred from class/field annotations, " +
@@ -113,9 +101,9 @@ public class ClassMapper<TYPE> {
 					", nor is default dbName available.");
 		}
 
-		// acquire @SetName in the following order
-		// 1. use @SetName on a field or
-		// 2. use @SetName on class or
+		// acquire @TableName in the following order
+		// 1. use @TableName on a field or
+		// 2. use @TableName on class or
 		// 3. Use Class simple name
 		String fieldSetName = tableNameFieldMapper != null ? tableNameFieldMapper.getPropertyValue(target) : null;
 		metadata.tableName = fieldSetName != null ? fieldSetName :
@@ -209,31 +197,11 @@ public class ClassMapper<TYPE> {
 		}
 	}
 
-	public void setUserKey(TYPE object, String userKey) {
+	public void setId(TYPE object, Object id) {
 		if (idFieldMapper != null) {
-			if (!String.class.isAssignableFrom(idFieldMapper.field.getType())) {
-				throw new RuntimeException("Id type mismatch: @Id field '" +
-						idFieldMapper.field.getDeclaringClass().getName() + "#" + idFieldMapper.field.getName() +
-						"' has type '" + idFieldMapper.field.getType() + "', while key has type 'String'."
-				);
-			}
-			idFieldMapper.setFieldValue(object, userKey);
+			idFieldMapper.setFieldValue(object, id);
 		}
 	}
-
-	public void setUserKey(TYPE object, Long userKey) {
-		if (idFieldMapper != null) {
-			if (!long.class.isAssignableFrom(idFieldMapper.field.getType()) && // UserKey could be a long but given "userKey" will always be Long
-					!Long.class.isAssignableFrom(idFieldMapper.field.getType())) {
-				throw new RuntimeException("Key type mismatch: @UserKey field '" +
-						idFieldMapper.field.getDeclaringClass().getName() + "#" + idFieldMapper.field.getName() +
-						"' has type '" + idFieldMapper.field.getType() + "', while key has type 'Long'."
-				);
-			}
-			idFieldMapper.setFieldValue(object, userKey);
-		}
-	}
-
 
 	public String getPropertyName(String fieldName) {
 		FieldMapper fieldMapper = mappers.get(fieldName);

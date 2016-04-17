@@ -2,7 +2,6 @@ package com.rethinkdb.orm;
 
 import com.rethinkdb.gen.ast.Table;
 import com.rethinkdb.net.Connection;
-import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,6 +121,58 @@ public class RDB {
 		return get(clazz, list);
 	}
 
+	public static Object create(Object object) {
+		Class<?> clazz = object.getClass();
+		Connection conn = CPool.getConnection();
+		ClassMapper mapper = ClassMapper.getMapper(clazz);
+		Map<String, Object> props = mapper.getProperties(object);
+
+		String defaultDbName = conn.db().isPresent() ? conn.db().get() : null;
+		ObjectMetadata metadata = mapper.getRequiredMetadata(object, defaultDbName);
+
+		mapper.map(object, metadata.dbName, metadata.tableName, metadata.id, props);
+		Map<String, Object> res = table(clazz).insert(props).optArg("return_changes", "always").run(conn);
+
+		Long errors = (Long) res.get("errors");
+		if (!errors.equals(0L)) {
+			StringBuilder sb = new StringBuilder("DB error happened:\n");
+			for (String key : res.keySet()) {
+				sb.append("  ").append(key).append(":").append(res.get(key)).append("\n");
+			}
+			throw new RuntimeException(sb.toString());
+		}
+		List generatedKeys = (List) res.get("generated_keys");
+
+		Long inserted = (Long) res.get("inserted");
+		if (!inserted.equals(1L)) {
+			log.error("DB error: get() should return one result, instead 'inserted'=" + inserted);
+			return null;
+		}
+
+		//generated_keys
+
+		return null;
+	}
+
+
+	public static Object create(Object[] objects) {
+
+		for (Object object : objects) {
+			Class<?> clazz = object.getClass();
+			Connection conn = CPool.getConnection();
+			ClassMapper mapper = ClassMapper.getMapper(clazz);
+			Map<String, Object> props = mapper.getProperties(object);
+
+			String defaultDbName = conn.db().isPresent() ? conn.db().get() : null;
+			ObjectMetadata metadata = mapper.getRequiredMetadata(object, defaultDbName);
+
+			mapper.map(object, metadata.dbName, metadata.tableName, metadata.id, props);
+			Object res = table(clazz).insert(props).run(conn);
+		}
+
+		return null;
+	}
+
 	public static <T> T get(Class<T> clazz, Object id) {
 
 		if (id.getClass().isArray() && id.getClass().getComponentType().isPrimitive()) {
@@ -141,10 +192,10 @@ public class RDB {
 			T object = classConstructor.construct(clazz);
 			ClassMapper mapper = ClassMapper.getMapper(clazz);
 
-			String dbName = getDbName(mapper, conn);
-			String tableName = mapper.getTableName();
+			String defaultDbName = conn.db().isPresent() ? conn.db().get() : null;
+			ObjectMetadata metadata = mapper.getRequiredMetadata(object, defaultDbName);
 
-			mapper.map(object, dbName, tableName, resMap);
+			mapper.map(object, metadata.dbName, metadata.tableName, metadata.id, resMap);
 
 			return object;
 

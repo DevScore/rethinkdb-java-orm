@@ -56,18 +56,14 @@ public class BasicTests {
 
 		int id = 1;
 
-		RDB.table(EntityOne.class).insert(r.hashMap("id", id)
-				.with("one", 1)
-				.with("two", "two")
-				.with("three", 3.14d)
-				.with("four", 3.14f)
-				.with("five", (short) 100)
-				.with("six", (byte) 127)
-		).run(connection);
+		EntityOne entity = TestUtils.randomEntityOne();
+
+		RDB.create(entity);
 
 		EntityOne res = RDB.get(EntityOne.class, id);
 
 		//todo write assert
+		System.out.println();
 	}
 
 	@Test
