@@ -5,7 +5,6 @@ import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.rethinkdb.orm.Converter;
-import com.rethinkdb.orm.ConverterFactory;
 
 import java.io.IOException;
 import java.lang.reflect.Field;

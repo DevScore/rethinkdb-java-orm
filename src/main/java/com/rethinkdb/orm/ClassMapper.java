@@ -2,13 +2,18 @@ package com.rethinkdb.orm;
 
 import com.rethinkdb.orm.annotations.DbName;
 import com.rethinkdb.orm.annotations.TableName;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @SuppressWarnings("unchecked")
 public class ClassMapper<TYPE> {
+
+	private static final Logger log = LoggerFactory.getLogger(RDB.class);
 
 	private static final Map<Class, ClassMapper> classMappers = new ConcurrentHashMap<>();
 
@@ -18,26 +23,23 @@ public class ClassMapper<TYPE> {
 		if (classMapper == null) {
 			classMapper = new ClassMapper<>(clazz);
 			classMappers.put(clazz, classMapper);
+			classMapper.init();
 		}
 		return classMapper;
 	}
 
-	public static boolean hasMapper(Class clazz) {
-		return classMappers.containsKey(clazz);
-	}
-
-	private final Map<String /** field name **/, FieldMapper> mappers;
 
 	private final Class<TYPE> type;
 	private final String classTableName;
 	private final String classDbName;
 
-	private final FieldMapper<String, String> dbNameFieldMapper;
-	private final FieldMapper<String, String> tableNameFieldMapper;
-	private final FieldMapper idFieldMapper;
-	private final FieldMapper anyPropertyMapper;
+	private Map<String /*field name*/, FieldMapper> mappers;
+	private FieldMapper<String /*field name*/, String /*property name*/> dbNameFieldMapper;
+	private FieldMapper<String /*field name*/, String /*property name*/> tableNameFieldMapper;
+	private FieldMapper idFieldMapper;
+	private FieldMapper anyPropertyMapper;
 
-	public ClassMapper(Class<TYPE> clazz) {
+	private ClassMapper(Class<TYPE> clazz) {
 		this.type = clazz;
 
 		// parse @Namespace class annotation
@@ -47,43 +49,75 @@ public class ClassMapper<TYPE> {
 		// parse @SetName class annotation
 		TableName setNameAnnotation = clazz.getAnnotation(TableName.class);
 		classTableName = setNameAnnotation != null ? setNameAnnotation.value() : null;
+	}
 
-		Map<String, FieldMapper> fieldMappers = MapperUtils.getFieldMappers(clazz);
-//		fieldMappers.putAll(MapperUtils.getJsonMappers(clazz));
-		mappers = fieldMappers;
+	private void init() {
 
-		dbNameFieldMapper = MapperUtils.getDbNameFieldMapper(clazz);
-		tableNameFieldMapper = MapperUtils.getTableNameFieldMapper(clazz);
-		idFieldMapper = MapperUtils.getIdFieldMapper(clazz);
-		anyPropertyMapper = MapperUtils.getAnyFieldMapper(clazz);
+		mappers = MapperUtils.getFieldMappers(type);
+
+		dbNameFieldMapper = MapperUtils.getDbNameFieldMapper(type);
+		tableNameFieldMapper = MapperUtils.getTableNameFieldMapper(type);
+		idFieldMapper = MapperUtils.getIdFieldMapper(type);
+		anyPropertyMapper = MapperUtils.getAnyFieldMapper(type);
 	}
 
 	public void map(TYPE object,
-	                String dbName,
+	                String defaultDbName,
 	                String tableName,
 	                Object id,
 	                Map<String, Object> properties) {
 
-		this.setId(object, id);
+		// property "id" is a special generated property and represents the primary key
+		// we must remove it from a list of normal record properties
+		Object prodId = properties.remove("id");
+
+		if (id != null) {
+			if (id.getClass() == prodId.getClass() && !id.equals(prodId)) {
+				log.warn("Error: id mismatch. Requested id=" + id + " but returned id=" + prodId);
+			}
+		}
+
+		this.setId(object, prodId);
 
 		// set meta-fields on the entity: @Namespace, @SetName, @Expiration..
-		this.setMetaFieldValues(object, dbName, tableName);
+		this.setMetaFieldValues(object, defaultDbName, tableName);
 
 		// set field values
 		this.setFieldValues(object, properties);
+	}
+
+	public Object map(TYPE object,
+	                String defaultDbName,
+	                String tableName,
+	                Map<String, Object> properties) {
+
+		// property "id" is a special generated property and represents the primary key
+		// we must remove it from a list of normal record properties
+		Object prodId = properties.remove("id");
+
+		this.setId(object, prodId);
+
+		// set meta-fields on the entity: @Namespace, @SetName, @Expiration..
+		this.setMetaFieldValues(object, defaultDbName, tableName);
+
+		// set field values
+		this.setFieldValues(object, properties);
+
+		return prodId;
 	}
 
 	public Class<TYPE> getType() {
 		return type;
 	}
 
-	public ObjectMetadata getRequiredMetadata(Object target, String defaultDbName) {
+	ObjectMetadata getRequiredMetadata(Object target, String defaultDbName) {
+
 		Class type = target.getClass();
 		ObjectMetadata metadata = new ObjectMetadata();
 
 		// acquire UserKey
 		if (idFieldMapper == null) {
-			throw new RuntimeException("Class " + type.getName() + " is missing a field with @UserKey annotation.");
+			throw new RuntimeException("Class " + type.getName() + " is missing a field with @Id annotation.");
 		}
 		metadata.id = idFieldMapper.getPropertyValue(target);
 
@@ -120,7 +154,8 @@ public class ClassMapper<TYPE> {
 		return classTableName != null ? classTableName : type.getSimpleName();
 	}
 
-	public String getDbName() {
+	String getDbName() {
+
 		return classDbName;
 	}
 
@@ -129,7 +164,26 @@ public class ClassMapper<TYPE> {
 		Map<String, Object> props = new HashMap<>(mappers.size());
 		for (FieldMapper fieldMapper : mappers.values()) {
 			Object propertyValue = fieldMapper.getPropertyValue(object);
-			props.put(fieldMapper.binName, propertyValue);
+
+			// skips writing property value if field is marked with @IgnoreNull && fieldVale == null
+			if (fieldMapper.ignoreNull() && propertyValue == null) {
+				continue;
+			}
+
+			// skips writing property value if field is marked with @IgnoreEmpty && collection.isEmpty()
+			if (fieldMapper.ignoreEmpty()
+					&& Collection.class.isAssignableFrom(propertyValue.getClass())
+					&& ((Collection) propertyValue).isEmpty()) {
+				continue;
+			}
+			// skips writing property value if field is marked with @IgnoreEmpty && map.isEmpty()
+			if (fieldMapper.ignoreEmpty()
+					&& Map.class.isAssignableFrom(propertyValue.getClass())
+					&& ((Map) propertyValue).isEmpty()) {
+				continue;
+			}
+
+			props.put(fieldMapper.propertyName, propertyValue);
 		}
 
 		// find unmapped properties
@@ -143,8 +197,66 @@ public class ClassMapper<TYPE> {
 		return props;
 	}
 
-	public FieldMapper getFieldMapper(String fieldName) {
+	public FieldMapper getdMapper(String fieldName) {
 		return mappers.get(fieldName);
+	}
+
+	/**
+	 * Converts a field value to DB property value
+	 *
+	 * @param fieldName
+	 * @param fieldValue
+	 * @return
+	 */
+	public Object toPropertyValue(String fieldName, Object fieldValue) {
+		FieldMapper mapper = mappers.get(fieldName);
+		if (mapper == null) {
+			throw new RdbException(RdbException.Error.ClassMappingError, "Class " + type.getName() + " does not have a mapper for field " + fieldName);
+		}
+		return mapper.toPropertyValue(fieldValue);
+	}
+
+	/**
+	 * Converts a field value to DB property value
+	 *
+	 * @param fieldName
+	 * @param fieldValue
+	 * @return
+	 */
+	public Object toPropertyComponentValue(String fieldName, Object fieldValue) {
+		FieldMapper mapper = mappers.get(fieldName);
+		if (mapper == null) {
+			throw new RdbException(RdbException.Error.ClassMappingError, "Class " + type.getName() + " does not have a mapper for field " + fieldName);
+		}
+		return mapper.toPropertyComponentValue(fieldValue);
+	}
+
+	/**
+	 * Converts a field value to DB property value
+	 *
+	 * @param fieldValue
+	 * @return
+	 */
+	public Object toIdValue(Object fieldValue) {
+		if (idFieldMapper == null) {
+			throw new RdbException(RdbException.Error.ClassMappingError, "Class " + type.getName() + " does not have a mapper for Id field.");
+		}
+		return idFieldMapper.toPropertyValue(fieldValue);
+	}
+
+	/**
+	 * Converts a DB property value to field value
+	 *
+	 * @param fieldName
+	 * @param propertyValue
+	 * @return
+	 */
+	public Object toFieldValue(String fieldName, Object propertyValue) {
+		FieldMapper mapper = mappers.get(fieldName);
+		if (mapper == null) {
+			throw new RdbException(RdbException.Error.ClassMappingError, "Class " + type.getName() + " does not have a mapper for field " + fieldName);
+		}
+		return mapper.toFieldValue(propertyValue);
 	}
 
 	public void setFieldValues(TYPE object, Map<String, Object> properties) {
@@ -153,8 +265,8 @@ public class ClassMapper<TYPE> {
 		Map<String, Object> mappedProps = new HashMap<>(properties);
 
 		for (FieldMapper fieldMapper : mappers.values()) {
-			Object prop = mappedProps.get(fieldMapper.binName);
-			mappedProps.remove(fieldMapper.binName);
+			Object prop = mappedProps.get(fieldMapper.propertyName);
+			mappedProps.remove(fieldMapper.propertyName);
 			if (prop != null) {
 				fieldMapper.setFieldValue(object, prop);
 			}
@@ -162,7 +274,13 @@ public class ClassMapper<TYPE> {
 
 		// at this point mappedProps should only contain unmapped properties
 		if (anyPropertyMapper != null) {
-			anyPropertyMapper.setFieldValue(object, mappedProps);
+			try {
+				anyPropertyMapper.setFieldValue(object, mappedProps);
+			}
+			catch (java.lang.ClassCastException e) {
+				log.error("Failed to cast: " + object + " from: " + mappedProps);
+				throw e;
+			}
 		}
 	}
 
@@ -177,9 +295,9 @@ public class ClassMapper<TYPE> {
 		Map<String, Object> fieldValues = new HashMap<>();
 
 		for (FieldMapper fieldMapper : mappers.values()) {
-			if (properties.containsKey(fieldMapper.binName)) {
-				Object propValue = properties.get(fieldMapper.binName);
-				fieldValues.put(fieldMapper.field.getName(), fieldMapper.getFieldValue(propValue));
+			if (properties.containsKey(fieldMapper.propertyName)) {
+				Object propValue = properties.get(fieldMapper.propertyName);
+				fieldValues.put(fieldMapper.field.getName(), fieldMapper.toFieldValue(propValue));
 			}
 		}
 
@@ -187,13 +305,13 @@ public class ClassMapper<TYPE> {
 	}
 
 
-	public void setMetaFieldValues(Object object, String namespace, String setName) {
+	private void setMetaFieldValues(Object object, String dbName, String tableName) {
 
 		if (dbNameFieldMapper != null) {
-			dbNameFieldMapper.setFieldValue(object, namespace);
+			dbNameFieldMapper.setFieldValue(object, dbName);
 		}
 		if (tableNameFieldMapper != null) {
-			tableNameFieldMapper.setFieldValue(object, setName);
+			tableNameFieldMapper.setFieldValue(object, tableName);
 		}
 	}
 
@@ -203,9 +321,20 @@ public class ClassMapper<TYPE> {
 		}
 	}
 
+	public Object getId(Object object) {
+		if (idFieldMapper != null) {
+			return idFieldMapper.getPropertyValue(object);
+		}
+		return null;
+	}
+
+	public FieldMapper getIdFieldMapper() {
+		return idFieldMapper;
+	}
+
 	public String getPropertyName(String fieldName) {
 		FieldMapper fieldMapper = mappers.get(fieldName);
-		return MapperUtils.getBinName(fieldMapper.field);
+		return MapperUtils.getPropertyName(fieldMapper.field);
 	}
 
 }

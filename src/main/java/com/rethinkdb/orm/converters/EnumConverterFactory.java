@@ -2,29 +2,20 @@ package com.rethinkdb.orm.converters;
 
 import com.rethinkdb.orm.Converter;
 import com.rethinkdb.orm.ConverterFactory;
-
-import java.lang.reflect.Field;
-import java.lang.reflect.Type;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import com.rethinkdb.orm.TypeInfo;
 
 public class EnumConverterFactory implements ConverterFactory {
 
-	private static final Map<Type, EnumConverter> cachedConverters = new ConcurrentHashMap<>();
-
 	@Override
-	public Converter init(Field field) {
-		Type fieldType = field.getType();
-		EnumConverter converter = cachedConverters.get(fieldType);
-		if (converter == null) {
-			converter = new EnumConverter(fieldType);
-			cachedConverters.put(fieldType, converter);
+	public Converter init(TypeInfo typeInfo) {
+		if (typeInfo == null) {
+			return null;
 		}
-		return converter;
+		return new EnumConverter(typeInfo.type);
 	}
 
-	public boolean canConvert(Class type) {
-		return Enum.class.isAssignableFrom(type);
+	public boolean canConvert(TypeInfo typeInfo) {
+		return Enum.class.isAssignableFrom(typeInfo.type);
 	}
 
 

@@ -2,26 +2,36 @@ package com.rethinkdb.orm.converters;
 
 import com.rethinkdb.orm.Converter;
 import com.rethinkdb.orm.ConverterFactory;
+import com.rethinkdb.orm.TypeInfo;
 
-import java.lang.reflect.Field;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.Date;
 
-public class DateConverter implements Converter<Date, Long>, ConverterFactory {
+public class DateConverter implements Converter<Date, OffsetDateTime>, ConverterFactory {
 
 	@Override
-	public Converter init(Field field) {
+	public Converter init(TypeInfo typeInfo) {
 		return this;
 	}
 
-	public boolean canConvert(Class type) {
-		return Date.class.isAssignableFrom(type);
+	public boolean canConvert(TypeInfo typeInfo) {
+		return Date.class.isAssignableFrom(typeInfo.type);
 	}
 
-	public Date fromProperty(Long property) {
-		return property == null ? null : new Date(property);
+	public Date fromProperty(OffsetDateTime property) {
+		if (property == null) {
+			return null;
+		}
+
+		if (property.getYear() < 1400 || property.getYear() > 9999) {
+			throw new IllegalArgumentException("Error: date is out of bounds. " +
+					"Year must be between 1400 and 9999. Date:" + property.toString());
+		}
+		return Date.from(property.toInstant());
 	}
 
-	public Long fromField(Date date) {
-		return date.getTime();
+	public OffsetDateTime fromField(Date date) {
+		return OffsetDateTime.ofInstant(date.toInstant(), ZoneOffset.UTC);
 	}
 }

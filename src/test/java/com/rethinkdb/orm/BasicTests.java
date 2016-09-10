@@ -1,146 +1,102 @@
 package com.rethinkdb.orm;
 
-import com.rethinkdb.gen.ast.Table;
 import com.rethinkdb.net.Connection;
-import com.rethinkdb.orm.entities.EntityNonExistingDbName;
 import com.rethinkdb.orm.entities.EntityOne;
-import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import static com.rethinkdb.RethinkDB.r;
 
-public class BasicTests {
-
+public class BasicTests extends BaseTest {
 
 	@BeforeClass
 	public static void before() {
 
-		Connection.Builder connBuilder1 = Connection.build().hostname("localhost").port(28015).db("test");
-		Connection.Builder connBuilder2 = Connection.build().hostname("localhost").port(28016).db("test");
-		Connection.Builder connBuilder3 = Connection.build().hostname("localhost").port(28017).db("test");
-		Connection.Builder connBuilder4 = Connection.build().hostname("localhost").port(28018).db("test"); // this one should not exist
+		BaseTest.before();
 
-		CPool.addConnection(connBuilder1);
-		CPool.addConnection(connBuilder2);
-		CPool.addConnection(connBuilder3);
-		CPool.addConnection(connBuilder4);
-
-		RDB.register(EntityOne.class);
-	}
-
-	@AfterClass
-	public static void after() {
-
-		RDB.tableDrop(EntityOne.class, CPool.getConnection());
-		CPool.clearConnections();
-	}
-
-	@Test(expected = IllegalStateException.class)
-	public void nonExistingDbName() {
-		RDB.register(EntityNonExistingDbName.class);  // throws IllegalStateException because DB does not exist
+		rdb.register(EntityOne.class);
+		rdb.tablePurge(EntityOne.class);
 	}
 
 	@Test
-	public void simpleTest() {
+	public void putProperties() {
 
-		Connection connection = CPool.getConnection();
-		Table t = RDB.table(EntityOne.class);
-		t.run(connection);
-	}
+		Map<String, Object> props = new HashMap<>();
+		props.put("id", "props1");
+//		props.put("byte", (byte) 127);
+//		props.put("short", (short) 32444);
+//		props.put("int", 234872348);
+//		props.put("long", 2348723484L);
+//		props.put("boolean", true);
+//		props.put("float0", 0.0f);
+//		props.put("float", 1.1f);
+//		props.put("double", 1.23456556d);
+//		props.put("id", "props1");
+////		props.put("byteA", r.array((byte) 1, (byte) 2, (byte) 3));
+//		props.put("byteB", Arrays.asList((byte) 1, (byte) 2, (byte) 3));
+//		props.put("shortA", Arrays.asList((short) 32444, (short) 32325));
+//		props.put("intA", Arrays.asList(234872348, 5));
+//		props.put("longA", Arrays.asList(new long[]{2348723484L, 12123123123L}));
+//		props.put("booleanA", Arrays.asList(true, false));
+//		props.put("booleanB", r.array(true, false));
+//		props.put("charA", Arrays.asList('a', "b"));
+//		props.put("floatA", Arrays.asList(1.2345f, 2.33333f));
+//		props.put("doubleA", Arrays.asList(1.23456556d, 34234.213243));
+		props.put("binary", r.binary(new byte[]{1, 2, 3, 4, 5, 6, 7, 8}));
 
-	@Test
-	public void getNumberId() {
+		// save
+		try (Connection conn = rdb.getConnection()) {
+			rdb.table(EntityOne.class).insert(props).run(conn);
+			// reload
+			Map<String, Object> res = rdb.table(EntityOne.class).get("props1").run(conn);
 
-		Connection connection = CPool.getConnection();
+			for (String key : res.keySet()) {
+				System.out.println(key + ":" + res.get(key) + "  " + res.get(key).getClass().getName());
+			}
+		}
 
-		int id = 1;
+		//todo add 'binary' to EntityOne and add an @Indexed on it
+//		List<EntityOne> foundBinary = rdb.filter(EntityOne.class, "binary", r.binary(new byte[]{1, 2, 3, 4, 5, 6, 7, 8}));
+//		Cursor out = rdb.table(EntityOne.class).between(r.binary(new byte[]{1, 2}), r.binary(new byte[]{1, 3})).optArg("index", "binary").run(CPool.getConnection());
 
-		EntityOne entity = TestUtils.randomEntityOne();
-
-		RDB.create(entity);
-
-		EntityOne res = RDB.get(EntityOne.class, id);
-
-		//todo write assert
-		System.out.println();
-	}
-
-	@Test
-	public void getArrayId() {
-
-		Connection connection = CPool.getConnection();
-
-		// integer array
-		int[] ids = new int[]{1, 2, 3};
-
-		// we provide an array of floats as ID
-		RDB.table(EntityOne.class).insert(r.hashMap("id", r.array(1.0f, 2.0f, 3.0f)).with("type", "floats")).run(connection);
-		EntityOne res = RDB.get(EntityOne.class, ids);
-
-		//todo write assert
-
-	}
-
-	@Test
-	public void getArrayIntegers() {
-
-		Connection connection = CPool.getConnection();
-
-		// integer array
-		Integer[] ids = new Integer[]{1, 2, 3};
-
-		// we provide an array of floats as ID
-		RDB.table(EntityOne.class).insert(r.hashMap("id", r.array(1.0f, 2.0f, 3.0f))
-		).run(connection);
-		EntityOne res = RDB.get(EntityOne.class, ids);
-
-		//todo write assert
+//		List list = out.toList();
+//		for (Object obj : list) {
+//			System.out.println(obj);
+//		}
 
 	}
 
-	@Test(expected = RuntimeException.class)
-	public void unsupportedIdArrayType() {
+	@Test(expected = IllegalArgumentException.class)
+	public void outOfBoundsFloat() {
 
-		Connection connection = CPool.getConnection();
-		// integer array
-		byte[] ids = new byte[]{1, 2, 3};
-		EntityOne res = RDB.get(EntityOne.class, ids);
+		Map<String, Object> props = new HashMap<>();
+		props.put("id", "props2");
+		props.put("four", (double) 2 * Float.MAX_VALUE);
+
+		// save
+		try (Connection conn = rdb.getConnection()) {
+			rdb.table(EntityOne.class).insert(props).run(conn);
+		}
+		// reload
+		EntityOne res = rdb.get(EntityOne.class, "props2");
 	}
 
-	@Test
-	public void geoData() {
+	@Test(expected = IllegalArgumentException.class)
+	public void outOfBoundsInteger() {
 
-		Connection connection = CPool.getConnection();
+		Map<String, Object> props = new HashMap<>();
+		props.put("id", "props3");
+		props.put("one", (long) Integer.MAX_VALUE + 1);
 
-		// we provide an array of floats as ID
-		RDB.table(EntityOne.class).insert(r.hashMap("id", "geo1")
-				.with("point", r.point(1, 2))
-				.with("line", r.line(r.point(1, 2), r.point(3, 4)))
-				.with("poly", r.polygon(r.point(1, 2), r.point(3, 4), r.point(5, 6)))
-		).run(connection);
-		EntityOne res = RDB.get(EntityOne.class, "geo1");
-
-		//todo write assert
-
-	}
-
-	@Test
-	public void timeData() {
-
-		Connection connection = CPool.getConnection();
-
-		// we provide an array of floats as ID
-		RDB.table(EntityOne.class).insert(r.hashMap("id", "time1")
-				.with("now", r.now())
-				.with("past", r.time(2016, 1, 1, "+00")) // 1-1-2016 UTC-0
-				.with("epoch", r.epochTime(531360000))
-				.with("iso", r.iso8601("1986-11-03T08:30:00-07:00"))
-		).run(connection);
-		EntityOne res = RDB.get(EntityOne.class, "time1");
-
-		//todo write assert
-
+		// save
+		try (Connection conn = rdb.getConnection()) {
+			rdb.table(EntityOne.class).insert(props).run(conn);
+		}
+		// reload
+		EntityOne res = rdb.get(EntityOne.class, "props3");
 	}
 
 }

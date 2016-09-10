@@ -2,35 +2,40 @@ package com.rethinkdb.orm.converters;
 
 import com.rethinkdb.orm.Converter;
 import com.rethinkdb.orm.ConverterFactory;
-
-import java.lang.reflect.Field;
+import com.rethinkdb.orm.TypeInfo;
 
 public class DoubleConverter implements Converter<Double, Object>, ConverterFactory {
 
 	@Override
-	public Converter init(Field field) {
+	public Converter init(TypeInfo typeInfo) {
 		return this;
 	}
 
-	public boolean canConvert(Class type) {
-		return Double.class.isAssignableFrom(type) || double.class.isAssignableFrom(type);
+	public boolean canConvert(TypeInfo typeInfo) {
+		return Double.class.isAssignableFrom(typeInfo.type) || double.class.isAssignableFrom(typeInfo.type);
 	}
 
-	public Double fromProperty(Object property) {
-		if (property == null) {
+	public Double fromProperty(Object inProperty) {
+		if (inProperty == null) {
 			return null;
-		} else if (property instanceof Double) {
-			return (Double) property;
-		} else if (property instanceof Long) {
-			return Double.longBitsToDouble((Long) property);
+		}
+
+		Double property;
+		if (inProperty.getClass() == Long.class) {
+			return ((Long) inProperty).doubleValue();
 		} else {
-			throw new IllegalArgumentException("Fields of type 'double' can only be mapped to DB values of Long or Double.");
+			return (Double) inProperty;
 		}
 	}
 
-	public Object fromField(Double fieldValue) {
+	public Double fromField(Double fieldValue) {
 
-		return Double.doubleToLongBits(fieldValue); // return Long - the old, pre-3.6.0 way of converting Double to Long
+		if(fieldValue > DB_MAX_VAL || fieldValue < DB_MIN_VAL){
+			throw new IllegalArgumentException("Error: Field value is out of bounds, value=" + fieldValue
+					+ ". DB numeric values must be between " + DB_MIN_VAL + " and " + DB_MAX_VAL);
+		}
+
+		return fieldValue;
 	}
 
 }

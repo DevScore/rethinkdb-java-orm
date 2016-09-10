@@ -14,7 +14,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 		@JsonSubTypes.Type(value = GeoLine.class, name = "LineString"),
 })
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class GeoData extends JsonBase{
+public class GeoData extends JsonBase {
 
 	public enum Type {Point, LineString, Polygon }
 

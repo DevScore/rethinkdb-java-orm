@@ -1,7 +1,6 @@
 package com.rethinkdb.orm.converters;
 
 import com.rethinkdb.orm.Converter;
-import com.rethinkdb.orm.ConverterFactory;
 import com.rethinkdb.orm.NoArgClassConstructor;
 
 import java.lang.reflect.Constructor;

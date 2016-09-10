@@ -2,26 +2,26 @@ package com.rethinkdb.orm.converters;
 
 import com.rethinkdb.orm.Converter;
 import com.rethinkdb.orm.ConverterFactory;
+import com.rethinkdb.orm.TypeInfo;
 
-import java.lang.reflect.Field;
 import java.util.Map;
 
-public class MapConverter implements Converter<Map, Map>, ConverterFactory {
+public class MapConverter implements Converter<Map, Map<String, Object>>, ConverterFactory {
 
 	@Override
-	public Converter init(Field field) {
+	public Converter init(TypeInfo typeInfo) {
 		return this;
 	}
 
-	public boolean canConvert(Class type) {
-		return Map.class.isAssignableFrom(type);
+	public boolean canConvert(TypeInfo typeInfo) {
+		return Map.class.isAssignableFrom(typeInfo.type);
 	}
 
-	public Map fromProperty(Map map) {
-		return map;
+	public Map fromProperty(Map<String, Object> properties) {
+		return properties;
 	}
 
-	public Map fromField(Map fieldValue) {
+	public Map<String, Object> fromField(Map fieldValue) {
 		return fieldValue;
 	}
 

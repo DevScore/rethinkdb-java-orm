@@ -2,26 +2,25 @@ package com.rethinkdb.orm.converters;
 
 import com.rethinkdb.orm.Converter;
 import com.rethinkdb.orm.ConverterFactory;
+import com.rethinkdb.orm.TypeInfo;
 
-import java.lang.reflect.Field;
-
-public class BooleanConverter implements Converter<Boolean, Long>, ConverterFactory {
+public class BooleanConverter implements Converter<Boolean, Boolean>, ConverterFactory {
 
 	@Override
-	public Converter init(Field field) {
+	public Converter init(TypeInfo typeInfo) {
 		return this;
 	}
 
-	public boolean canConvert(Class type) {
-		return Boolean.class.isAssignableFrom(type) || boolean.class.isAssignableFrom(type);
+	public boolean canConvert(TypeInfo typeInfo) {
+		return Boolean.class.isAssignableFrom(typeInfo.type) || boolean.class.isAssignableFrom(typeInfo.type);
 	}
 
-	public Boolean fromProperty(Long property) {
-		return property != null && property != 0;
+	public Boolean fromProperty(Boolean inProperty) {
+		return inProperty;
 	}
 
-	public Long fromField(Boolean fieldValue) {
-		return (long) (fieldValue ? 1 : 0);
+	public Boolean fromField(Boolean fieldValue) {
+		return fieldValue;
 	}
 
 }

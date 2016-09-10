@@ -9,9 +9,4 @@ import java.lang.annotation.Target;
 @Target({ElementType.FIELD})
 public @interface Indexed {
 
-	/**
-	 * @return Specific index name. Default is an automatically-generated value.
-	 */
-	String name() default "";
-
 }

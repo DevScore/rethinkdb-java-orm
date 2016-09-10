@@ -2,37 +2,47 @@ package com.rethinkdb.orm.converters;
 
 import com.rethinkdb.orm.Converter;
 import com.rethinkdb.orm.ConverterFactory;
-
-import java.lang.reflect.Field;
+import com.rethinkdb.orm.TypeInfo;
 
 public class FloatConverter implements Converter<Float, Object>, ConverterFactory {
 
 	@Override
-	public Converter init(Field field) {
+	public Converter init(TypeInfo typeInfo) {
 		return this;
 	}
 
-	public boolean canConvert(Class type) {
-		return Float.class.isAssignableFrom(type) || float.class.isAssignableFrom(type);
+	public boolean canConvert(TypeInfo typeInfo) {
+		return Float.class.isAssignableFrom(typeInfo.type) || float.class.isAssignableFrom(typeInfo.type);
 	}
 
-	public Float fromProperty(Object property) {
-		if (property == null) {
+	public Float fromProperty(Object inProperty) {
+		if (inProperty == null) {
 			return null;
-		} else if (property instanceof Float) {
-			return (Float) property;
-		} else if (property instanceof Double) {
-			return ((Double) property).floatValue();
-		} else if (property instanceof Long) {
-			return (float) Double.longBitsToDouble((Long) property);
-		} else {
-			throw new IllegalArgumentException("Fields of type 'float' can only be mapped to DB values of Long or Double.");
 		}
+
+		Float property;
+		if (inProperty.getClass() == Long.class) {
+			property = ((Long) inProperty).floatValue();
+		} else if (inProperty.getClass() == Double.class) {
+			property = ((Double) inProperty).floatValue();
+		} else {
+			property = (Float) inProperty;
+		}
+
+		if (property > Float.MAX_VALUE || property < -Float.MAX_VALUE) {
+			throw new IllegalArgumentException("Error: DB property is out of bounds, value=" + property
+					+ ". Float values must be between " + Float.MIN_VALUE + " and " + Float.MAX_VALUE);
+		}
+		return property;
 	}
 
-	public Object fromField(Float fieldValue) {
-
-			return Double.doubleToLongBits(fieldValue); // return Long - the old, pre-3.6.0 way of converting Double to Long
+	public Double fromField(Float fieldValue) {
+		if (fieldValue > DB_MAX_VAL || fieldValue < DB_MIN_VAL) {
+			throw new IllegalArgumentException("Error: Field value is out of bounds, value=" + fieldValue
+					+ ". DB numeric values must be between " + DB_MIN_VAL + " and " + DB_MAX_VAL);
+		}
+		double doubleValue = fieldValue.doubleValue();
+		return doubleValue;
 	}
 
 }
