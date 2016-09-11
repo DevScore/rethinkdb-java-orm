@@ -87,9 +87,9 @@ public class ClassMapper<TYPE> {
 	}
 
 	public Object map(TYPE object,
-	                String defaultDbName,
-	                String tableName,
-	                Map<String, Object> properties) {
+	                  String defaultDbName,
+	                  String tableName,
+	                  Map<String, Object> properties) {
 
 		// property "id" is a special generated property and represents the primary key
 		// we must remove it from a list of normal record properties

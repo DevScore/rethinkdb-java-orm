@@ -3,15 +3,14 @@ package com.rethinkdb.orm;
 import com.rethinkdb.net.Connection;
 import com.rethinkdb.net.Cursor;
 import com.rethinkdb.orm.entities.EntityBinary;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
+import java.util.*;
 
 import static com.rethinkdb.RethinkDB.r;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class BinaryTests extends BaseTest {
 
@@ -57,41 +56,42 @@ public class BinaryTests extends BaseTest {
 		rdb.create(entity2);
 
 		EntityBinary res = rdb.get(EntityBinary.class, entity1.id);
-		Assert.assertEquals(entity1, res);
+		assertEquals(entity1, res);
 
 		try (Connection conn = rdb.getConnection()) {
 			Cursor resA = rdb.table(EntityBinary.class).getAll(new Object[]{r.binary(entity1.id)}).run(conn);
 			List resAList = resA.toList();
 
 			// query by Id
-			List<EntityBinary> resAll = rdb.getAll(EntityBinary.class, new Object[]{entity1.id});
-			Assert.assertEquals(1, resAll.size());
-			Assert.assertEquals(entity1, resAll.get(0));
-			List<EntityBinary> resAll2 = rdb.getAll(EntityBinary.class, new Object[]{entity2.id});
-			Assert.assertEquals(1, resAll2.size());
-			Assert.assertEquals(entity2, resAll2.get(0));
+			Set<EntityBinary> resAll = rdb.getAll(EntityBinary.class, new Object[]{entity1.id});
+			assertEquals(1, resAll.size());
+			assertEquals(entity1, resAll.iterator().next());
+
+			Set<EntityBinary> resAll2 = rdb.getAll(EntityBinary.class, new Object[]{entity2.id});
+			assertEquals(1, resAll2.size());
+			assertEquals(entity2, resAll2.iterator().next());
 
 			// Query test
 
 			// query by property 'binary'
-			List<EntityBinary> queryRes1 = rdb.query(EntityBinary.class, "binary", (Object) entity1.binary);
-			Assert.assertEquals(1, queryRes1.size());
-			Assert.assertEquals(entity1, queryRes1.get(0));
-			List<EntityBinary> queryRes2 = rdb.query(EntityBinary.class, "binary", (Object) entity2.binary);
-			Assert.assertEquals(1, queryRes2.size());
-			Assert.assertEquals(entity2, queryRes2.get(0));
+			Set<EntityBinary> queryRes1 = rdb.query(EntityBinary.class, "binary", (Object) entity1.binary);
+			assertEquals(1, queryRes1.size());
+			assertEquals(entity1, queryRes1.iterator().next());
+
+			Set<EntityBinary> queryRes2 = rdb.query(EntityBinary.class, "binary", (Object) entity2.binary);
+			assertEquals(1, queryRes2.size());
+			assertEquals(entity2, queryRes2.iterator().next());
 
 			// query by property 'binaryList'
-			List<EntityBinary> queryResList = rdb.query(EntityBinary.class, "binaryList", (Object) entity1.binaryList.get(0));
-			Assert.assertEquals(2, queryResList.size());
-			Assert.assertEquals(entity1, queryResList.get(0));
-			Assert.assertEquals(entity2, queryResList.get(1));
+			Set<EntityBinary> queryResSet = rdb.query(EntityBinary.class, "binaryList", (Object) entity1.binaryList.get(0));
+			List<EntityBinary> vals1 = Arrays.asList(entity1, entity2);
+			assertEquals(vals1.size(), queryResSet.size());
+			assertTrue(queryResSet.stream().allMatch(vals1::contains));
 
 			// query by property 'binaryMap'
-			List<EntityBinary> queryResMap = rdb.query(EntityBinary.class, "binaryMap", "one");
-			Assert.assertEquals(2, queryResMap.size());
-			Assert.assertEquals(entity1, queryResMap.get(0));
-			Assert.assertEquals(entity2, queryResMap.get(1));
+			Set<EntityBinary> queryResMap = rdb.query(EntityBinary.class, "binaryMap", "one");
+			assertTrue(queryResMap.stream().allMatch(vals1::contains));
+
 		}
 	}
 

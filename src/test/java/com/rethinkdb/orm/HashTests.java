@@ -8,8 +8,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import static com.rethinkdb.RethinkDB.r;
 import static org.junit.Assert.assertEquals;
@@ -47,20 +47,20 @@ public class HashTests extends BaseTest {
 			assertEquals(entity, resEnt);
 		}
 
-			// query by Id
-			List<EntityHash> resAll = rdb.getAll(EntityHash.class, entity.id);
-			assertEquals(1, resAll.size());
-			assertEquals(entity, resAll.get(0));
+		// query by Id
+		Set<EntityHash> resAll = rdb.getAll(EntityHash.class, entity.id);
+		assertEquals(1, resAll.size());
+		assertEquals(entity, resAll.iterator().next());
 
-			// query by property 'binary'
-			List<EntityHash> queryRes = rdb.query(EntityHash.class, "hash", entity.hash);
-			assertEquals(1, queryRes.size());
-			assertEquals(entity, queryRes.get(0));
+		// query by property 'binary'
+		Set<EntityHash> queryRes = rdb.query(EntityHash.class, "hash", entity.hash);
+		assertEquals(1, queryRes.size());
+		assertEquals(entity, queryRes.iterator().next());
 
-			// query by property 'binaryList'
-			List<EntityHash> queryResList = rdb.query(EntityHash.class, "hashList", (Object) entity.hashList.get(0));
-			assertEquals(1, queryResList.size());
-			assertEquals(entity, queryResList.get(0));
+		// query by property 'binaryList'
+		Set<EntityHash> queryResList = rdb.query(EntityHash.class, "hashList", (Object) entity.hashList.get(0));
+		assertEquals(1, queryResList.size());
+		assertEquals(entity, queryResList.iterator().next());
 	}
 
 	@Test

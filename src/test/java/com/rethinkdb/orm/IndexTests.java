@@ -4,12 +4,10 @@ import com.rethinkdb.net.Connection;
 import com.rethinkdb.orm.data.IndexInfo;
 import com.rethinkdb.orm.entities.EntityIndexOne;
 import com.rethinkdb.orm.entities.EntityOne;
-import org.junit.Assert;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 import static com.rethinkdb.RethinkDB.r;
 import static org.junit.Assert.*;
@@ -50,16 +48,17 @@ public class IndexTests extends BaseTest {
 		three.one = 4;
 		rdb.create(three);
 
-		List<EntityOne> getList = rdb.getAll(EntityOne.class, one.userId, two.userId);
-		Assert.assertEquals(2, getList.size());
-		Assert.assertEquals(1, getList.get(0).one);
-		Assert.assertEquals(3, getList.get(1).one);
+		Set<EntityOne> getSet = rdb.getAll(EntityOne.class, one.userId, two.userId);
+		assertEquals(2, getSet.size());
+		Iterator<EntityOne> iter1 = getSet.iterator();
+		assertEquals(1, iter1.next().one);
+		assertEquals(3, iter1.next().one);
 
-		List greaterThanTwo = rdb.between(EntityOne.class, "one", 3, Integer.MAX_VALUE);
-		Assert.assertEquals(2, greaterThanTwo.size());
+		Set<EntityOne> greaterThanTwo = rdb.between(EntityOne.class, "one", 3, Integer.MAX_VALUE);
+		assertEquals(2, greaterThanTwo.size());
 
-		List lessThanTwo = rdb.between(EntityOne.class, "one", 0, 2);
-		Assert.assertEquals(1, lessThanTwo.size());
+		Set<EntityOne> lessThanTwo = rdb.between(EntityOne.class, "one", 0, 2);
+		assertEquals(1, lessThanTwo.size());
 
 	}
 
@@ -108,17 +107,16 @@ public class IndexTests extends BaseTest {
 		rdb.create(three);
 
 		// query
-		List<EntityIndexOne> list = rdb.query(EntityIndexOne.class, "one", 1);
-		assertEquals(2, list.size());
+		Set<EntityIndexOne> set = rdb.query(EntityIndexOne.class, "one", 1);
+		assertEquals(2, set.size());
 
-		list.sort(Comparator.comparing(entityIndexOne -> entityIndexOne.name));
-		assertEquals("test1", list.get(0).name);
-		assertEquals("test3", list.get(1).name);
+		Set<String> values = new HashSet<>(Arrays.asList("test1", "test3"));
+		assertTrue(set.stream().allMatch(ent -> values.contains(ent.name)));
 
 		// again with different filter
-		list = rdb.query(EntityIndexOne.class, "one", 2);
-		assertEquals(1, list.size());
-		assertEquals("test2", list.get(0).name);
+		set = rdb.query(EntityIndexOne.class, "one", 2);
+		assertEquals(1, set.size());
+		assertEquals("test2", set.iterator().next().name);
 	}
 
 	@Test
@@ -149,25 +147,22 @@ public class IndexTests extends BaseTest {
 		rdb.create(two);
 		rdb.create(three);
 
-		List<EntityIndexOne> list = rdb.query(EntityIndexOne.class, "items", "1");
-		assertEquals(2, list.size());
-		list.sort(Comparator.comparing(entityIndexOne -> entityIndexOne.name));
-
-		assertEquals("test1", list.get(0).name);
-		assertEquals("test2", list.get(1).name);
+		Set<EntityIndexOne> set = rdb.query(EntityIndexOne.class, "items", "1");
+		assertEquals(2, set.size());
+		List<String> vals1 = Arrays.asList("test1", "test2");
+		assertTrue(set.stream().allMatch(ent -> vals1.contains(ent.name)));
 
 		// 2
-		list = rdb.query(EntityIndexOne.class, "items", "2");
-		assertEquals(2, list.size());
-		list.sort(Comparator.comparing(entityIndexOne -> entityIndexOne.name));
-
-		assertEquals("test2", list.get(0).name);
-		assertEquals("test3", list.get(1).name);
+		set = rdb.query(EntityIndexOne.class, "items", "2");
+		assertEquals(2, set.size());
+		List<String> vals2 = Arrays.asList("test2", "test3");
+		assertTrue(set.stream().allMatch(ent -> vals2.contains(ent.name)));
 
 		// 3
-		list = rdb.query(EntityIndexOne.class, "items", "3");
-		assertEquals(1, list.size());
-		assertEquals("test3", list.get(0).name);
+		set = rdb.query(EntityIndexOne.class, "items", "3");
+		List<String> vals3 = Collections.singletonList("test3");
+		assertEquals(vals3.size(), set.size());
+		assertTrue(set.stream().allMatch(ent -> vals3.contains(ent.name)));
 	}
 
 	@Test
@@ -197,25 +192,23 @@ public class IndexTests extends BaseTest {
 		rdb.create(two);
 		rdb.create(three);
 
-		List<EntityIndexOne> list = rdb.query(EntityIndexOne.class, "list", "1");
-		assertEquals(2, list.size());
-		list.sort(Comparator.comparing(entityIndexOne -> entityIndexOne.name));
-
-		assertEquals("test1", list.get(0).name);
-		assertEquals("test2", list.get(1).name);
+		Set<EntityIndexOne> set = rdb.query(EntityIndexOne.class, "list", "1");
+		List<String> vals1 = Arrays.asList("test1", "test2");
+		assertEquals(vals1.size(), set.size());
+		assertTrue(set.stream().allMatch(ent -> vals1.contains(ent.name)));
 
 		// 2
-		list = rdb.query(EntityIndexOne.class, "list", "2");
-		assertEquals(2, list.size());
-		list.sort(Comparator.comparing(entityIndexOne -> entityIndexOne.name));
+		set = rdb.query(EntityIndexOne.class, "list", "2");
+		List<String> vals2 = Arrays.asList("test2", "test3");
+		assertEquals(vals2.size(), set.size());
+		assertTrue(set.stream().allMatch(ent -> vals2.contains(ent.name)));
 
-		assertEquals("test2", list.get(0).name);
-		assertEquals("test3", list.get(1).name);
 
 		// 3
-		list = rdb.query(EntityIndexOne.class, "list", "3");
-		assertEquals(1, list.size());
-		assertEquals("test3", list.get(0).name);
+		set = rdb.query(EntityIndexOne.class, "list", "3");
+		List<String> vals3 = Arrays.asList("test3");
+		assertEquals(vals3.size(), set.size());
+		assertTrue(set.stream().allMatch(ent -> vals3.contains(ent.name)));
 	}
 
 	@Test
@@ -239,27 +232,21 @@ public class IndexTests extends BaseTest {
 		rdb.create(three);
 
 		//
-		List<EntityIndexOne> list = rdb.between(EntityIndexOne.class, "one", 1, 10);
-		assertEquals(2, list.size());
-
-		list.sort(Comparator.comparing(entityIndexOne -> entityIndexOne.one));
-
-		assertEquals(1, list.get(0).one);
-		assertEquals(10, list.get(1).one);
+		Set<EntityIndexOne> set = rdb.between(EntityIndexOne.class, "one", 1, 10);
+		List<Integer> vals1 = Arrays.asList(1, 10);
+		assertEquals(vals1.size(), set.size());
+		assertTrue(set.stream().allMatch(ent -> vals1.contains(ent.one)));
 
 		//
-		list = rdb.between(EntityIndexOne.class, "one", 1, 20);
-		assertEquals(3, list.size());
-
-		list.sort(Comparator.comparing(entityIndexOne -> entityIndexOne.one));
-
-		assertEquals(1, list.get(0).one);
-		assertEquals(10, list.get(1).one);
-		assertEquals(20, list.get(2).one);
+		set = rdb.between(EntityIndexOne.class, "one", 1, 20);
+		List<Integer> vals2 = Arrays.asList(1, 10, 20);
+		assertEquals(vals2.size(), set.size());
+		assertTrue(set.stream().allMatch(ent -> vals2.contains(ent.one)));
 
 		//
-		list = rdb.between(EntityIndexOne.class, "one", 11, 20);
-		assertEquals(1, list.size());
-		assertEquals(20, list.get(0).one);
+		set = rdb.between(EntityIndexOne.class, "one", 11, 20);
+		List<Integer> vals3 = Collections.singletonList(20);
+		assertEquals(vals3.size(), set.size());
+		assertTrue(set.stream().allMatch(ent -> vals3.contains(ent.one)));
 	}
 }

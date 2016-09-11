@@ -1,5 +1,10 @@
 package com.rethinkdb.orm.utils;
 
+import java.util.Arrays;
+import java.util.Set;
+import java.util.function.Predicate;
+import java.util.stream.Stream;
+
 /**
  * Method parameter check helper
  * add additional check when needed
@@ -34,5 +39,10 @@ public class Assert {
 	public static void notNullOrEmptyTrimmed(String value, String message) {
 
 		isFalse(StringUtils.isNullOrEmptyTrimmed(value), message);
+	}
+
+	public static <T> void matchesAll(Set<T> set, Predicate<? super T> predicate, T... values){
+		Stream<T> vals = Arrays.stream(values);
+		isTrue(set.stream().allMatch(obj -> vals.anyMatch(predicate)), "Given set does not match values via the given predicate.");
 	}
 }

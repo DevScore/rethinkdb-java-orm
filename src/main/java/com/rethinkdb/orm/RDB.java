@@ -158,7 +158,7 @@ public class RDB {
 	/**
 	 * Run "native" RDB ReqlExpr query
 	 * <p>
-	 * DO NOT use this for Cursors (connection is closed imidiately)
+	 * DO NOT use this for Cursors (connection is closed immediately)
 	 *
 	 * @param expr
 	 * @param <T>
@@ -476,7 +476,7 @@ public class RDB {
 	}
 
 
-	public <T, K> List<T> getAll(Class<T> clazz, K... id) {
+	public <T, K> Set<T> getAll(Class<T> clazz, K... id) {
 
 		Object res;
 		try (Connection conn = pool.getConnection()) {
@@ -485,7 +485,7 @@ public class RDB {
 				res = table(clazz).run(conn);
 			} else {
 				ClassMapper<T> classMapper = ClassMapper.getMapper(clazz);
-				Object[] idProps = Arrays.stream(id).map(item -> classMapper.toIdValue(item)).toArray();
+				Object[] idProps = Arrays.stream(id).map(classMapper::toIdValue).toArray();
 				res = table(clazz).getAll(idProps).run(conn);
 			}
 
@@ -503,7 +503,7 @@ public class RDB {
 	/*public <T> List<T> filter(Class<T> clazz, String index, Object... values) {
 		return filter(clazz, index, null, values);
 	}*/
-	public <T> List<T> filter(Class<T> clazz, ReqlFunction1 filterFunction) {
+	public <T> Set<T> filter(Class<T> clazz, ReqlFunction1 filterFunction) {
 
 		ReqlExpr reql = table(clazz);
 		if (null != filterFunction) {
@@ -527,7 +527,7 @@ public class RDB {
 	 * @param <T>
 	 * @return
 	 */
-	public <T> List<T> between(Class<T> clazz, String index, Object fromValue, Object toValue) {
+	public <T> Set<T> between(Class<T> clazz, String index, Object fromValue, Object toValue) {
 
 
 		// get indexed field annotations
@@ -558,7 +558,7 @@ public class RDB {
 	 * @param <T>    result type
 	 * @return list of found results or empty if none found
 	 */
-	public <T> List<T> query(Class<T> clazz, String index, Object... values) {
+	public <T> Set<T> query(Class<T> clazz, String index, Object... values) {
 
 		// get indexed field annotations
 		Annotation[] annotations = indexing.getAnnotations(clazz, index);
@@ -626,13 +626,13 @@ public class RDB {
 	 * @param <T>
 	 * @return
 	 */
-	public <T> List<T> getResultSet(Object res, Class<T> clazz) {
+	public <T> Set<T> getResultSet(Object res, Class<T> clazz) {
 
 		if (res == null) {
-			return Collections.emptyList();
+			return Collections.emptySet();
 		}
 
-		ClassMapper mapper = ClassMapper.getMapper(clazz);
+		ClassMapper<T> mapper = ClassMapper.getMapper(clazz);
 		String defaultDbName = pool.getDbName();
 
 		if (res instanceof Cursor) {
@@ -642,14 +642,14 @@ public class RDB {
 			try {
 
 				// must iterate over cursor ... in long lists especially
-				List<T> output = new ArrayList<>();
+				Map<Object, T> output = new HashMap<>();
 				for (Map<String, Object> item : cursor) {
 
 					T object = classConstructor.construct(clazz);
-					mapper.map(object, defaultDbName, mapper.getTableName(), item);
-					output.add(object);
+					Object id = mapper.map(object, defaultDbName, mapper.getTableName(), item);
+					output.put(id, object);  // this effectively de-duplicates based on document id
 				}
-				return output;
+				return new HashSet<>(output.values());
 			} finally {
 				cursor.close();
 			}
