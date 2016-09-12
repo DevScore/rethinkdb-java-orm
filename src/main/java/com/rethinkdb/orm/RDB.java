@@ -156,9 +156,9 @@ public class RDB {
 	}
 
 	/**
-	 * Run "native" RDB ReqlExpr query
+	 * Run "native" RDB ReqlExpr queryList
 	 * <p>
-	 * DO NOT use this for Cursors (connection is closed immediately)
+	 * DO NOT use this for Cursors (connection is closed imidiately)
 	 *
 	 * @param expr
 	 * @param <T>
@@ -447,7 +447,7 @@ public class RDB {
 		}
 
 		T object = classConstructor.construct(clazz);
-		ClassMapper mapper = ClassMapper.getMapper(clazz);
+		ClassMapper<T> mapper = ClassMapper.getMapper(clazz);
 
 		String defaultDbName = pool.getDbName();
 		mapper.map(object, defaultDbName, mapper.getTableName(), null, resMap);
@@ -458,7 +458,7 @@ public class RDB {
 	public <T> List<T> map(Class<T> clazz, List<Map<String, Object>> resMapList) {
 
 		if (resMapList == null || resMapList.isEmpty()) {
-			return Collections.EMPTY_LIST;
+			return Collections.emptyList();
 		}
 
 		List<T> entities = new ArrayList<>(resMapList.size());
@@ -467,7 +467,7 @@ public class RDB {
 		for (Map<String, Object> resMap : resMapList) {
 
 			T object = classConstructor.construct(clazz);
-			ClassMapper mapper = ClassMapper.getMapper(clazz);
+			ClassMapper<T> mapper = ClassMapper.getMapper(clazz);
 			mapper.map(object, defaultDbName, mapper.getTableName(), null, resMap);
 			entities.add(object);
 		}
@@ -476,7 +476,25 @@ public class RDB {
 	}
 
 
-	public <T, K> Set<T> getAll(Class<T> clazz, K... id) {
+	public <T, K> List<T> getAllList(Class<T> clazz, K... id) {
+
+		Object res;
+		try (Connection conn = pool.getConnection()) {
+
+			if (id == null || id.length == 0) {
+				res = table(clazz).run(conn);
+			} else {
+				ClassMapper<T> classMapper = ClassMapper.getMapper(clazz);
+				Object[] idProps = Arrays.stream(id).map(item -> classMapper.toIdValue(item)).toArray();
+				res = table(clazz).getAll(idProps).run(conn);
+			}
+
+			return getResultList(res, clazz);
+		}
+	}
+
+
+	public <T, K> Collection<T> getAll(Class<T> clazz, K... id) {
 
 		Object res;
 		try (Connection conn = pool.getConnection()) {
@@ -503,17 +521,17 @@ public class RDB {
 	/*public <T> List<T> filter(Class<T> clazz, String index, Object... values) {
 		return filter(clazz, index, null, values);
 	}*/
-	public <T> Set<T> filter(Class<T> clazz, ReqlFunction1 filterFunction) {
+	public <T> List<T> filter(Class<T> clazz, ReqlFunction1 filterFunction) {
 
 		ReqlExpr reql = table(clazz);
 		if (null != filterFunction) {
 			reql = reql.filter(filterFunction);
 		}
 
-		// execute query
+		// execute queryList
 		try (Connection conn = pool.getConnection()) {
 			Object res = reql.run(conn);
-			return getResultSet(res, clazz);
+			return getResultList(res, clazz);
 		}
 	}
 
@@ -527,7 +545,7 @@ public class RDB {
 	 * @param <T>
 	 * @return
 	 */
-	public <T> Set<T> between(Class<T> clazz, String index, Object fromValue, Object toValue) {
+	public <T> List<T> between(Class<T> clazz, String index, Object fromValue, Object toValue) {
 
 
 		// get indexed field annotations
@@ -545,12 +563,12 @@ public class RDB {
 
 		try (Connection conn = pool.getConnection()) {
 			Object res = table(clazz).between(fromValue, toValue).optArg("right_bound", "closed").optArg("index", index).run(conn);
-			return getResultSet(res, clazz);
+			return getResultList(res, clazz);
 		}
 	}
 
 	/**
-	 * Value filtering by index
+	 * Value filtering by index, returns a list
 	 *
 	 * @param clazz  to be filtered
 	 * @param index  index name
@@ -558,7 +576,7 @@ public class RDB {
 	 * @param <T>    result type
 	 * @return list of found results or empty if none found
 	 */
-	public <T> Set<T> query(Class<T> clazz, String index, Object... values) {
+	public <T> List<T> queryList(Class<T> clazz, String index, Object... values) {
 
 		// get indexed field annotations
 		Annotation[] annotations = indexing.getAnnotations(clazz, index);
@@ -573,7 +591,37 @@ public class RDB {
 		try (Connection conn = pool.getConnection()) {
 			ReqlExpr reql = table(clazz).getAll(values).optArg("index", index);
 
-			// execute query
+			// execute queryList
+			Object res = reql.run(conn);
+			return getResultList(res, clazz);
+		}
+	}
+
+	/**
+	 * Value filtering by index
+	 *
+	 * @param clazz  to be filtered
+	 * @param index  index name
+	 * @param values to filter for
+	 * @param <T>    result type
+	 * @return a de-duplicated set of found results or empty if none found
+	 */
+	public <T> Collection<T> query(Class<T> clazz, String index, Object... values) {
+
+		// get indexed field annotations
+		Annotation[] annotations = indexing.getAnnotations(clazz, index);
+
+		if (!hasAnnotation(Indexed.class, annotations)) {
+			throw new RdbException(RdbException.Error.IndexNotDefined, "Missing index: '" + index + "' on: " + clazz.getName());
+		}
+
+		ClassMapper<T> classMapper = ClassMapper.getMapper(clazz);
+		values = Arrays.stream(values).map(value -> classMapper.toPropertyComponentValue(index, value)).toArray();
+
+		try (Connection conn = pool.getConnection()) {
+			ReqlExpr reql = table(clazz).getAll(values).optArg("index", index);
+
+			// execute queryList
 			Object res = reql.run(conn);
 			return getResultSet(res, clazz);
 		}
@@ -618,15 +666,15 @@ public class RDB {
 	}
 
 	/**
-	 * Iterates the RDB cursor and returns the ordered list of unique objects.
-	 * Returned list contains unique objects as defined by their respective database IDs.
+	 * Iterates the RDB cursor and returns a de-duplicated collection of unique objects.
+	 * Returned collection contains unique objects as defined by their respective database IDs.
 	 *
 	 * @param res
 	 * @param clazz
 	 * @param <T>
 	 * @return
 	 */
-	public <T> Set<T> getResultSet(Object res, Class<T> clazz) {
+	public <T> Collection<T> getResultSet(Object res, Class<T> clazz) {
 
 		if (res == null) {
 			return Collections.emptySet();
@@ -649,12 +697,59 @@ public class RDB {
 					Object id = mapper.map(object, defaultDbName, mapper.getTableName(), item);
 					output.put(id, object);  // this effectively de-duplicates based on document id
 				}
-				return new HashSet<>(output.values());
+				return output.values();
 			} finally {
 				cursor.close();
 			}
 		} else {
-			throw new RuntimeException("Error: response from .getAll() is not a Cursor. Response: " + res);
+			throw new RuntimeException("Error: response is not a Cursor. Response: " + res);
+		}
+	}
+
+	/**
+	 * Iterates the RDB cursor and returns a list of objects in order they were received from database.
+	 * This method does NOT perform de-duplication so the returned list may contain duplicate objects.
+	 *
+	 * @param res
+	 * @param clazz
+	 * @param <T>
+	 * @return
+	 */
+	public <T> List<T> getResultList(Object res, Class<T> clazz) {
+
+		if (res == null) {
+			return Collections.emptyList();
+		}
+
+		ClassMapper mapper = ClassMapper.getMapper(clazz);
+		String defaultDbName = pool.getDbName();
+
+		if (res instanceof Cursor) {
+
+			Cursor<Map<String, Object>> cursor = (Cursor<Map<String, Object>>) res;
+
+			try {
+
+				// must iterate over cursor ... in long lists especially
+				List<T> output = new ArrayList<>();
+				for (Map<String, Object> item : cursor) {
+
+//					Map<String, Object> item = cursor.next(READ_TIMEOUT);
+
+					T object = classConstructor.construct(clazz);
+					mapper.map(object, defaultDbName, mapper.getTableName(), item);
+					output.add(object);
+				}
+				return output;
+			}
+//			catch (TimeoutException e) {
+//				throw new RdbException(RdbException.Error.Timeout, "Time out while reading cursor: " + e.getMessage());
+//			}
+			finally {
+				cursor.close();
+			}
+		} else {
+			throw new RuntimeException("Error: response is not a Cursor. Response: " + res);
 		}
 	}
 

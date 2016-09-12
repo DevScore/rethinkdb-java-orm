@@ -8,8 +8,8 @@ import org.junit.BeforeClass;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Map;
-import java.util.Set;
 
 import static com.rethinkdb.RethinkDB.r;
 import static org.junit.Assert.assertEquals;
@@ -48,17 +48,17 @@ public class HashTests extends BaseTest {
 		}
 
 		// query by Id
-		Set<EntityHash> resAll = rdb.getAll(EntityHash.class, entity.id);
+		Collection<EntityHash> resAll = rdb.getAll(EntityHash.class, entity.id);
 		assertEquals(1, resAll.size());
 		assertEquals(entity, resAll.iterator().next());
 
 		// query by property 'binary'
-		Set<EntityHash> queryRes = rdb.query(EntityHash.class, "hash", entity.hash);
+		Collection<EntityHash> queryRes = rdb.query(EntityHash.class, "hash", entity.hash);
 		assertEquals(1, queryRes.size());
 		assertEquals(entity, queryRes.iterator().next());
 
 		// query by property 'binaryList'
-		Set<EntityHash> queryResList = rdb.query(EntityHash.class, "hashList", (Object) entity.hashList.get(0));
+		Collection<EntityHash> queryResList = rdb.query(EntityHash.class, "hashList", (Object) entity.hashList.get(0));
 		assertEquals(1, queryResList.size());
 		assertEquals(entity, queryResList.iterator().next());
 	}

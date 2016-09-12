@@ -48,16 +48,16 @@ public class IndexTests extends BaseTest {
 		three.one = 4;
 		rdb.create(three);
 
-		Set<EntityOne> getSet = rdb.getAll(EntityOne.class, one.userId, two.userId);
+		Collection<EntityOne> getSet = rdb.getAll(EntityOne.class, one.userId, two.userId);
 		assertEquals(2, getSet.size());
 		Iterator<EntityOne> iter1 = getSet.iterator();
 		assertEquals(1, iter1.next().one);
 		assertEquals(3, iter1.next().one);
 
-		Set<EntityOne> greaterThanTwo = rdb.between(EntityOne.class, "one", 3, Integer.MAX_VALUE);
+		Collection<EntityOne> greaterThanTwo = rdb.between(EntityOne.class, "one", 3, Integer.MAX_VALUE);
 		assertEquals(2, greaterThanTwo.size());
 
-		Set<EntityOne> lessThanTwo = rdb.between(EntityOne.class, "one", 0, 2);
+		Collection<EntityOne> lessThanTwo = rdb.between(EntityOne.class, "one", 0, 2);
 		assertEquals(1, lessThanTwo.size());
 
 	}
@@ -107,7 +107,7 @@ public class IndexTests extends BaseTest {
 		rdb.create(three);
 
 		// query
-		Set<EntityIndexOne> set = rdb.query(EntityIndexOne.class, "one", 1);
+		Collection<EntityIndexOne> set = rdb.query(EntityIndexOne.class, "one", 1);
 		assertEquals(2, set.size());
 
 		Set<String> values = new HashSet<>(Arrays.asList("test1", "test3"));
@@ -147,7 +147,7 @@ public class IndexTests extends BaseTest {
 		rdb.create(two);
 		rdb.create(three);
 
-		Set<EntityIndexOne> set = rdb.query(EntityIndexOne.class, "items", "1");
+		Collection<EntityIndexOne> set = rdb.query(EntityIndexOne.class, "items", "1");
 		assertEquals(2, set.size());
 		List<String> vals1 = Arrays.asList("test1", "test2");
 		assertTrue(set.stream().allMatch(ent -> vals1.contains(ent.name)));
@@ -192,7 +192,7 @@ public class IndexTests extends BaseTest {
 		rdb.create(two);
 		rdb.create(three);
 
-		Set<EntityIndexOne> set = rdb.query(EntityIndexOne.class, "list", "1");
+		Collection<EntityIndexOne> set = rdb.query(EntityIndexOne.class, "list", "1");
 		List<String> vals1 = Arrays.asList("test1", "test2");
 		assertEquals(vals1.size(), set.size());
 		assertTrue(set.stream().allMatch(ent -> vals1.contains(ent.name)));
@@ -232,7 +232,7 @@ public class IndexTests extends BaseTest {
 		rdb.create(three);
 
 		//
-		Set<EntityIndexOne> set = rdb.between(EntityIndexOne.class, "one", 1, 10);
+		Collection<EntityIndexOne> set = rdb.between(EntityIndexOne.class, "one", 1, 10);
 		List<Integer> vals1 = Arrays.asList(1, 10);
 		assertEquals(vals1.size(), set.size());
 		assertTrue(set.stream().allMatch(ent -> vals1.contains(ent.one)));

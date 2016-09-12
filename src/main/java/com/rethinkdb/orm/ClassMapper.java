@@ -103,7 +103,7 @@ public class ClassMapper<TYPE> {
 		// set field values
 		this.setFieldValues(object, properties);
 
-		return prodId;
+		return fromIdValue(prodId);
 	}
 
 	public Class<TYPE> getType() {
@@ -245,6 +245,19 @@ public class ClassMapper<TYPE> {
 	}
 
 	/**
+	 * Converts a DB ID property to field ID
+	 *
+	 * @param propertyValue
+	 * @return
+	 */
+	public Object fromIdValue(Object propertyValue) {
+		if (idFieldMapper == null) {
+			throw new RdbException(RdbException.Error.ClassMappingError, "Class " + type.getName() + " does not have a mapper for Id field.");
+		}
+		return idFieldMapper.toFieldValue(propertyValue);
+	}
+
+	/**
 	 * Converts a DB property value to field value
 	 *
 	 * @param fieldName
@@ -276,8 +289,7 @@ public class ClassMapper<TYPE> {
 		if (anyPropertyMapper != null) {
 			try {
 				anyPropertyMapper.setFieldValue(object, mappedProps);
-			}
-			catch (java.lang.ClassCastException e) {
+			} catch (java.lang.ClassCastException e) {
 				log.error("Failed to cast: " + object + " from: " + mappedProps);
 				throw e;
 			}

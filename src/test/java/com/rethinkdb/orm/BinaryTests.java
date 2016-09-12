@@ -63,33 +63,33 @@ public class BinaryTests extends BaseTest {
 			List resAList = resA.toList();
 
 			// query by Id
-			Set<EntityBinary> resAll = rdb.getAll(EntityBinary.class, new Object[]{entity1.id});
+			Collection<EntityBinary> resAll = rdb.getAll(EntityBinary.class, new Object[]{entity1.id});
 			assertEquals(1, resAll.size());
 			assertEquals(entity1, resAll.iterator().next());
 
-			Set<EntityBinary> resAll2 = rdb.getAll(EntityBinary.class, new Object[]{entity2.id});
+			Collection<EntityBinary> resAll2 = rdb.getAll(EntityBinary.class, new Object[]{entity2.id});
 			assertEquals(1, resAll2.size());
 			assertEquals(entity2, resAll2.iterator().next());
 
 			// Query test
 
 			// query by property 'binary'
-			Set<EntityBinary> queryRes1 = rdb.query(EntityBinary.class, "binary", (Object) entity1.binary);
+			Collection<EntityBinary> queryRes1 = rdb.query(EntityBinary.class, "binary", (Object) entity1.binary);
 			assertEquals(1, queryRes1.size());
 			assertEquals(entity1, queryRes1.iterator().next());
 
-			Set<EntityBinary> queryRes2 = rdb.query(EntityBinary.class, "binary", (Object) entity2.binary);
+			Collection<EntityBinary> queryRes2 = rdb.query(EntityBinary.class, "binary", (Object) entity2.binary);
 			assertEquals(1, queryRes2.size());
 			assertEquals(entity2, queryRes2.iterator().next());
 
 			// query by property 'binaryList'
-			Set<EntityBinary> queryResSet = rdb.query(EntityBinary.class, "binaryList", (Object) entity1.binaryList.get(0));
+			Collection<EntityBinary> queryResSet = rdb.query(EntityBinary.class, "binaryList", (Object) entity1.binaryList.get(0));
 			List<EntityBinary> vals1 = Arrays.asList(entity1, entity2);
 			assertEquals(vals1.size(), queryResSet.size());
 			assertTrue(queryResSet.stream().allMatch(vals1::contains));
 
 			// query by property 'binaryMap'
-			Set<EntityBinary> queryResMap = rdb.query(EntityBinary.class, "binaryMap", "one");
+			Collection<EntityBinary> queryResMap = rdb.query(EntityBinary.class, "binaryMap", "one");
 			assertTrue(queryResMap.stream().allMatch(vals1::contains));
 
 		}
